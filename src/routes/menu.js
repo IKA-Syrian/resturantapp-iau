@@ -1,7 +1,57 @@
 const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
-const { MenuCategory, MenuItem, MenuItemOption } = require('../models');
+const { MenuCategory, MenuItem, MenuItemOption, Restaurant } = require('../models');
+
+// Get complete menu for a restaurant (for frontend)
+router.get('/restaurant/:restaurantId', async (req, res, next) => {
+    try {
+        const restaurantId = req.params.restaurantId;
+
+        // Check if restaurant exists and is active
+        const restaurant = await Restaurant.findOne({
+            where: { id: restaurantId, is_active: true },
+            attributes: ['id', 'name', 'description', 'logo_url']
+        });
+
+        if (!restaurant) {
+            return res.status(404).json({ message: 'Restaurant not found' });
+        }
+
+        // Get menu categories with items
+        const categories = await MenuCategory.findAll({
+            where: { restaurant_id: restaurantId },
+            include: [{
+                model: MenuItem,
+                as: 'menuItems',
+                where: { is_available: true },
+                required: false,
+                include: [{
+                    model: MenuItemOption,
+                    as: 'options'
+                }]
+            }],
+            order: [
+                ['display_order', 'ASC'],
+                ['name', 'ASC'],
+                [{ model: MenuItem, as: 'menuItems' }, 'name', 'ASC']
+            ]
+        });
+
+        res.json({
+            restaurant,
+            menu: categories.map(category => ({
+                ...category.toJSON(),
+                menuItems: category.menuItems.map(item => ({
+                    ...item.toJSON(),
+                    imageUrl: item.image_url || 'https://via.placeholder.com/300x200'
+                }))
+            }))
+        });
+    } catch (err) {
+        next(err);
+    }
+});
 
 router.get('/', async (req, res, next) => {
     try {
@@ -223,4 +273,4 @@ router.get('/', async (req, res, next) => {
     }
 });
 
-module.exports = router; 
+module.exports = router;

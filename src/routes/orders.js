@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { Order, OrderItem, OrderItemOption, MenuItem, Payment } = require('../models');
+const { Order, OrderItem, OrderItemOption, MenuItem, Payment, User, Restaurant, Address } = require('../models');
+const { authenticateToken, isRestaurantStaff } = require('../middleware/auth');
 
 // Get all orders for a restaurant
 router.get('/restaurant/:restaurantId', async (req, res, next) => {
@@ -192,6 +193,111 @@ router.post('/', async (req, res, next) => {
     }
 });
 
+// Create order (checkout)
+router.post('/', authenticateToken, async (req, res, next) => {
+    try {
+        const {
+            restaurant_id,
+            order_type,
+            delivery_address_id,
+            items, // [{menu_item_id, quantity, options, special_notes}]
+            special_instructions,
+            promotion_code
+        } = req.body;
+
+        const userId = req.user.id;
+
+        // Validate restaurant
+        const restaurant = await Restaurant.findByPk(restaurant_id, { where: { is_active: true } });
+        if (!restaurant) {
+            return res.status(404).json({ message: 'Restaurant not found' });
+        }
+
+        // Validate delivery address if delivery order
+        if (order_type === 'delivery' && !delivery_address_id) {
+            return res.status(400).json({ message: 'Delivery address required for delivery orders' });
+        }
+
+        // Calculate order totals
+        let subtotal = 0;
+        const orderItemsData = [];
+
+        for (const item of items) {
+            const menuItem = await MenuItem.findByPk(item.menu_item_id);
+            if (!menuItem || !menuItem.is_available) {
+                return res.status(400).json({ message: `Menu item ${item.menu_item_id} not available` });
+            }
+
+            const itemPrice = parseFloat(menuItem.price);
+            const itemTotal = itemPrice * item.quantity;
+            subtotal += itemTotal;
+
+            orderItemsData.push({
+                menu_item_id: item.menu_item_id,
+                quantity: item.quantity,
+                unit_price: itemPrice,
+                item_name: menuItem.name,
+                item_total: itemTotal,
+                item_notes: item.special_notes || null
+            });
+        }
+
+        // Apply promotion if provided
+        let discount_amount = 0;
+        let promotion_id = null;
+        // TODO: Implement promotion logic
+
+        const tax_amount = subtotal * 0.08; // 8% tax
+        const total_amount = subtotal - discount_amount + tax_amount;
+
+        // Create order
+        const order = await Order.create({
+            user_id: userId,
+            restaurant_id,
+            order_type,
+            status: 'pending',
+            subtotal,
+            discount_amount,
+            tax_amount,
+            total_amount,
+            delivery_address_id: order_type === 'delivery' ? delivery_address_id : null,
+            special_instructions,
+            promotion_id
+        });
+
+        // Create order items
+        for (const itemData of orderItemsData) {
+            await OrderItem.create({
+                order_id: order.id,
+                ...itemData
+            });
+        }
+
+        // Get complete order with relations
+        const completeOrder = await Order.findByPk(order.id, {
+            include: [
+                {
+                    model: OrderItem,
+                    as: 'orderItems'
+                },
+                {
+                    model: Restaurant,
+                    as: 'restaurant',
+                    attributes: ['id', 'name', 'address', 'phone_number']
+                },
+                {
+                    model: Address,
+                    as: 'deliveryAddress'
+                }
+            ]
+        });
+
+        res.status(201).json(completeOrder);
+    } catch (err) {
+        next(err);
+    }
+});
+
 // Update order status
 router.patch('/:id/status', async (req, res, next) => {
     try {
@@ -253,4 +359,4 @@ router.post('/:id/cancel', async (req, res, next) => {
     }
 });
 
-module.exports = router; 
+module.exports = router;

@@ -7,6 +7,13 @@ module.exports = (sequelize, DataTypes) => {
                 foreignKey: 'restaurant_id',
                 as: 'users'
             });
+            Restaurant.hasMany(models.User, {
+                foreignKey: 'restaurant_id',
+                as: 'staff',
+                scope: {
+                    role: ['staff', 'admin']
+                }
+            });
             Restaurant.hasMany(models.MenuCategory, {
                 foreignKey: 'restaurant_id',
                 as: 'menuCategories'

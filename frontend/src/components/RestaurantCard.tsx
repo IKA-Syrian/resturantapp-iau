@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -29,7 +30,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant }) => {
           />
           <div className="absolute top-2 right-2">
             <Badge className="bg-white text-black">
-              ⭐ {typeof restaurant.rating === 'number' ? restaurant.rating.toFixed(1) : 'N/A'}
+              ⭐ {restaurant.rating.toFixed(1)}
             </Badge>
           </div>
         </div>
@@ -43,7 +44,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant }) => {
           </div>
         </CardContent>
         <CardFooter className="p-4 pt-0 flex justify-between items-center">
-          <span className="text-sm">Min. ${typeof restaurant.minimumOrder === 'number' ? restaurant.minimumOrder.toFixed(2) : 'N/A'}</span>
+          <span className="text-sm">Min. ${restaurant.minimumOrder.toFixed(2)}</span>
           <Badge className="bg-brand-orange hover:bg-brand-orange/90">View Menu</Badge>
         </CardFooter>
       </Card>

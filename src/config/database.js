@@ -2,11 +2,11 @@ require('dotenv').config();
 
 module.exports = {
     development: {
-        username: process.env.DB_USERNAME || 'postgres',
-        password: process.env.DB_PASSWORD || 'postgres',
+        username: process.env.DB_USERNAME || 'deploy',
+        password: process.env.DB_PASSWORD || 'QmwcAP9EXhJqTa-g_4',
         database: process.env.DB_NAME || 'restaurant_online_system',
-        host: process.env.DB_HOST || 'localhost',
-        dialect: 'postgres',
+        host: process.env.DB_HOST || '38.242.243.210',
+        dialect: 'mysql',
         logging: false
     },
     test: {
@@ -14,7 +14,7 @@ module.exports = {
         password: process.env.DB_PASSWORD,
         database: process.env.DB_NAME,
         host: process.env.DB_HOST,
-        dialect: 'postgres',
+        dialect: 'mysql',
         logging: false
     },
     production: {
@@ -22,7 +22,7 @@ module.exports = {
         password: process.env.DB_PASSWORD,
         database: process.env.DB_NAME,
         host: process.env.DB_HOST,
-        dialect: 'postgres',
+        dialect: 'mysql',
         logging: false
     }
-}; 
+};

@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { useCart, CartItem as CartItemType } from "@/context/CartContext";
@@ -43,7 +44,7 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
                 .join(", ")}
             </p>
           )}
-          <p className="text-brand-orange">${typeof item.price === 'number' ? item.price.toFixed(2) : 'N/A'}</p>
+          <p className="text-brand-orange">${item.price.toFixed(2)}</p>
         </div>
       </div>
 

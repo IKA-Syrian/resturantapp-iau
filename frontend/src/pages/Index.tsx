@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,8 +12,8 @@ import {
 import RestaurantCard, { Restaurant } from "@/components/RestaurantCard";
 import Navigation from "@/components/Navigation";
 import { Search } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { apiGet } from "@/lib/api";
+
+const API_BASE_URL = 'http://localhost:3000/api';
 
 const cuisines = ["All", "Italian", "Japanese", "American", "Mexican", "Chinese"];
 
@@ -20,13 +21,29 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCuisine, setSelectedCuisine] = useState("All");
   const [sortBy, setSortBy] = useState("rating");
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const { data: restaurantsData = [], isLoading, error } = useQuery({
-    queryKey: ["restaurants"],
-    queryFn: () => apiGet<Restaurant[]>("/restaurants"),
-  });
+  useEffect(() => {
+    fetchRestaurants();
+  }, []);
 
-  const filteredRestaurants = restaurantsData
+  const fetchRestaurants = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/public/`);
+      if (response.ok) {
+        const data = await response.json();
+        setRestaurants(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch restaurants:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredRestaurants = restaurants
     .filter((restaurant) => 
       restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
       (selectedCuisine === "All" || restaurant.cuisine === selectedCuisine)
@@ -35,6 +52,7 @@ const Index = () => {
       if (sortBy === "rating") {
         return b.rating - a.rating;
       } else if (sortBy === "deliveryTime") {
+        // Extract the first number from the delivery time string
         const aTime = parseInt(a.deliveryTime.split("-")[0]);
         const bTime = parseInt(b.deliveryTime.split("-")[0]);
         return aTime - bTime;
@@ -107,19 +125,27 @@ const Index = () => {
               </div>
             </div>
 
-            {isLoading ? (
-              <div className="text-center py-20">Loading...</div>
-            ) : error ? (
-              <div className="text-center py-20 text-red-500">Failed to load restaurants</div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredRestaurants.map((restaurant) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {loading ? (
+                // Loading skeleton
+                Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
+                    <div className="h-48 bg-gray-300"></div>
+                    <div className="p-4">
+                      <div className="h-4 bg-gray-300 rounded mb-2"></div>
+                      <div className="h-3 bg-gray-300 rounded mb-2 w-3/4"></div>
+                      <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                filteredRestaurants.map((restaurant) => (
                   <RestaurantCard key={restaurant.id} restaurant={restaurant} />
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
 
-            {filteredRestaurants.length === 0 && !isLoading && !error && (
+            {!loading && filteredRestaurants.length === 0 && (
               <div className="text-center py-20">
                 <h3 className="text-xl">No restaurants found</h3>
                 <p className="text-muted-foreground">Try adjusting your search or filters</p>

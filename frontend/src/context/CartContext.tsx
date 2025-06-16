@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import { apiPost } from "@/lib/api";
 
 export type CartItem = {
   id: string;
@@ -19,9 +18,15 @@ type CartContextType = {
   removeItem: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
+  checkout: (orderData: CheckoutData) => Promise<unknown>;
   totalItems: number;
   subtotal: number;
-  submitOrder: (orderDetails: Record<string, unknown>) => Promise<Record<string, unknown>>;
+};
+
+type CheckoutData = {
+  order_type: 'delivery' | 'pickup';
+  delivery_address_id?: string;
+  special_instructions?: string;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -128,17 +133,72 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
+  const checkout = async (orderData: CheckoutData) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Please log in to place an order");
+      }
+
+      if (!restaurantId) {
+        throw new Error("No restaurant selected");
+      }
+
+      const orderItems = items.map(item => ({
+        menu_item_id: parseInt(item.id),
+        quantity: item.quantity,
+        special_notes: Object.entries(item.options || {})
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(', ') || undefined
+      }));
+
+      const response = await fetch('http://localhost:3000/api/orders', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          restaurant_id: parseInt(restaurantId),
+          order_type: orderData.order_type,
+          delivery_address_id: orderData.delivery_address_id ? parseInt(orderData.delivery_address_id) : undefined,
+          items: orderItems,
+          special_instructions: orderData.special_instructions,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to place order');
+      }
+
+      const order = await response.json();
+      
+      // Clear cart after successful order
+      clearCart();
+      
+      toast({
+        title: "Order Placed Successfully!",
+        description: `Your order #${order.id} has been placed.`,
+      });
+
+      return order;
+    } catch (error) {
+      toast({
+        title: "Order Failed",
+        description: error instanceof Error ? error.message : "Failed to place order",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   const totalItems = items.reduce((total, item) => total + item.quantity, 0);
   
   const subtotal = items.reduce(
     (total, item) => total + item.price * item.quantity,
     0
   );
-
-  const submitOrder = async (orderDetails: Record<string, unknown>): Promise<Record<string, unknown>> => {
-    // You can customize orderDetails as needed
-    return apiPost("/orders", orderDetails);
-  };
 
   return (
     <CartContext.Provider
@@ -149,9 +209,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
         removeItem,
         updateQuantity,
         clearCart,
+        checkout,
         totalItems,
         subtotal,
-        submitOrder,
       }}
     >
       {children}

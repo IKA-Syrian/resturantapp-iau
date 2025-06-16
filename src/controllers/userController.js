@@ -1,4 +1,7 @@
 const { User, Address, Order } = require('../models');
+const jwt = require('jsonwebtoken');
+const { JWT_SECRET } = require('../middleware/auth');
+const { Op } = require('sequelize');
 
 class UserController {
     // Get all users
@@ -69,9 +72,7 @@ class UserController {
         } catch (err) {
             next(err);
         }
-    }
-
-    // Login user
+    }    // Login user
     async login(req, res, next) {
         try {
             const { email, password } = req.body;
@@ -86,9 +87,72 @@ class UserController {
                 return res.status(401).json({ message: 'Invalid credentials' });
             }
 
+            // Generate JWT token
+            const token = jwt.sign(
+                { userId: user.id, email: user.email, role: user.role },
+                JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+
             // Don't send password hash in response
             const { password_hash, ...userWithoutPassword } = user.toJSON();
-            res.json(userWithoutPassword);
+
+            res.json({
+                user: userWithoutPassword,
+                token,
+                message: 'Login successful'
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // Admin login (for staff and admin roles)
+    async adminLogin(req, res, next) {
+        try {
+            const { email, password } = req.body; const user = await User.findOne({
+                where: {
+                    email,
+                    is_active: true,
+                    role: { [Op.in]: ['staff', 'admin'] } // Only allow staff/admin login through this endpoint
+                }
+            });
+
+            if (!user) {
+                return res.status(401).json({ message: 'Invalid admin credentials' });
+            }
+
+            const isValidPassword = await user.validatePassword(password);
+            if (!isValidPassword) {
+                return res.status(401).json({ message: 'Invalid admin credentials' });
+            }
+
+            // Generate JWT token
+            const token = jwt.sign(
+                {
+                    userId: user.id,
+                    email: user.email,
+                    role: user.role,
+                    restaurantId: user.restaurant_id
+                },
+                JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+
+            // Don't send password hash in response
+            const { password_hash, ...userWithoutPassword } = user.toJSON();
+
+            // Determine user type for frontend
+            const userType = user.restaurant_id === null ? 'super_admin' : 'restaurant_admin';
+
+            res.json({
+                user: {
+                    ...userWithoutPassword,
+                    role: userType
+                },
+                token,
+                message: 'Admin login successful'
+            });
         } catch (err) {
             next(err);
         }
@@ -169,4 +233,4 @@ class UserController {
     }
 }
 
-module.exports = new UserController(); 
+module.exports = new UserController();

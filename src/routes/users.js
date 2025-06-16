@@ -14,6 +14,9 @@ router.post('/register', userController.register);
 // Login user
 router.post('/login', userController.login);
 
+// Admin login
+router.post('/admin/login', userController.adminLogin);
+
 // Update user
 router.put('/:id', userController.updateUser);
 
@@ -26,4 +29,4 @@ router.post('/:id/addresses', userController.addAddress);
 // Get user addresses
 router.get('/:id/addresses', userController.getAddresses);
 
-module.exports = router; 
+module.exports = router;

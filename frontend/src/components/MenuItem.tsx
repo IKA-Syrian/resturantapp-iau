@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Plus, Minus } from "lucide-react";
 
 export type MenuItemType = {
   id: string;
@@ -22,7 +24,7 @@ export type MenuItemType = {
   imageUrl?: string;
   options?: {
     name: string;
-    choices: string[];
+    choices: { name: string; price: number }[];
   }[];
 };
 
@@ -37,18 +39,25 @@ const MenuItem: React.FC<MenuItemProps> = ({ item }) => {
   const [selectedOptions, setSelectedOptions] = useState<{ [key: string]: string }>({});
 
   const handleAddToCart = () => {
-    if (item.options && item.options.length > 0) {
-      setIsDialogOpen(true);
-    } else {
-      addItem({
-        id: item.id,
-        restaurantId: item.restaurantId,
-        name: item.name,
-        price: item.price,
-        quantity: 1,
-        imageUrl: item.imageUrl,
+    setIsDialogOpen(true);
+  };
+
+  const calculateTotalPrice = () => {
+    let totalPrice = item.price;
+    
+    if (item.options) {
+      item.options.forEach(option => {
+        const selectedChoice = selectedOptions[option.name];
+        if (selectedChoice) {
+          const choice = option.choices.find(c => c.name === selectedChoice);
+          if (choice) {
+            totalPrice += choice.price;
+          }
+        }
       });
     }
+    
+    return totalPrice * quantity;
   };
 
   const handleCustomizedAddToCart = () => {
@@ -56,7 +65,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ item }) => {
       id: item.id,
       restaurantId: item.restaurantId,
       name: item.name,
-      price: item.price,
+      price: calculateTotalPrice() / quantity, // Store unit price including options
       quantity,
       options: selectedOptions,
       imageUrl: item.imageUrl,
@@ -73,12 +82,28 @@ const MenuItem: React.FC<MenuItemProps> = ({ item }) => {
     }));
   };
 
+  const increaseQuantity = () => {
+    setQuantity(prev => prev + 1);
+  };
+
+  const decreaseQuantity = () => {
+    if (quantity > 1) {
+      setQuantity(prev => prev - 1);
+    }
+  };
+
+  const getOptionPrice = (optionName: string, choiceName: string) => {
+    const option = item.options?.find(opt => opt.name === optionName);
+    const choice = option?.choices.find(c => c.name === choiceName);
+    return choice?.price || 0;
+  };
+
   return (
     <>
       <Card className="overflow-hidden hover:shadow-md transition-shadow duration-300">
         <div className="flex md:flex-row flex-col">
           {item.imageUrl && (
-            <div className="md:w-1/4 w-full h-24 md:h-auto">
+            <div className="md:w-32 md:h-32 w-full h-48 flex-shrink-0">
               <img
                 src={item.imageUrl}
                 alt={item.name}
@@ -90,7 +115,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ item }) => {
             <div>
               <div className="flex justify-between items-start">
                 <h3 className="font-medium text-lg">{item.name}</h3>
-                <span className="font-semibold text-brand-orange">${typeof item.price === 'number' ? item.price.toFixed(2) : 'N/A'}</span>
+                <span className="font-semibold text-brand-orange">${item.price.toFixed(2)}</span>
               </div>
               <p className="text-sm text-gray-500 mt-1 line-clamp-2">{item.description}</p>
             </div>
@@ -116,23 +141,24 @@ const MenuItem: React.FC<MenuItemProps> = ({ item }) => {
               <Label htmlFor="quantity" className="text-right">
                 Quantity
               </Label>
-              <div className="col-span-3 flex items-center">
+              <div className="col-span-3 flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => quantity > 1 && setQuantity(quantity - 1)}
-                  className="px-2"
+                  onClick={decreaseQuantity}
+                  disabled={quantity <= 1}
+                  className="h-8 w-8 p-0"
                 >
-                  -
+                  <Minus className="h-4 w-4" />
                 </Button>
-                <span className="w-8 text-center">{quantity}</span>
+                <span className="w-12 text-center font-medium">{quantity}</span>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="px-2"
+                  onClick={increaseQuantity}
+                  className="h-8 w-8 p-0"
                 >
-                  +
+                  <Plus className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -141,15 +167,25 @@ const MenuItem: React.FC<MenuItemProps> = ({ item }) => {
               <div key={option.name} className="grid gap-2">
                 <Label className="font-medium">{option.name}</Label>
                 <RadioGroup
-                  defaultValue={option.choices[0]}
+                  defaultValue={option.choices[0]?.name}
                   onValueChange={(value) => handleOptionChange(option.name, value)}
                 >
-                  {option.choices.map((choice) => (
-                    <div key={choice} className="flex items-center space-x-2">
-                      <RadioGroupItem value={choice} id={`${option.name}-${choice}`} />
-                      <Label htmlFor={`${option.name}-${choice}`}>{choice}</Label>
-                    </div>
-                  ))}
+                  {option.choices.map((choice) => {
+                    const extraPrice = choice.price;
+                    return (
+                      <div key={choice.name} className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value={choice.name} id={`${option.name}-${choice.name}`} />
+                          <Label htmlFor={`${option.name}-${choice.name}`}>{choice.name}</Label>
+                        </div>
+                        {extraPrice > 0 && (
+                          <span className="text-sm text-brand-orange font-medium">
+                            +${extraPrice.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </RadioGroup>
               </div>
             ))}
@@ -160,7 +196,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ item }) => {
               onClick={handleCustomizedAddToCart}
               className="bg-brand-orange hover:bg-brand-orange/90"
             >
-              Add to Cart - ${typeof item.price === 'number' ? (item.price * quantity).toFixed(2) : 'N/A'}
+              Add to Cart - ${calculateTotalPrice().toFixed(2)}
             </Button>
           </DialogFooter>
         </DialogContent>

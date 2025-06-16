@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { ShoppingCart } from "lucide-react";
 
 const Cart = () => {
-  const { items, subtotal, clearCart, submitOrder } = useCart();
+  const { items, subtotal, clearCart } = useCart();
   const { toast } = useToast();
   const deliveryFee = 2.99;
   const tax = subtotal * 0.1; // 10% tax rate
@@ -21,23 +22,6 @@ const Cart = () => {
       title: "Coupon Applied",
       description: "Discount applied to your order",
     });
-  };
-
-  const handleCheckout = async () => {
-    try {
-      await submitOrder({ items, subtotal } as Record<string, unknown>);
-      toast({
-        title: "Order Placed!",
-        description: "Your order has been submitted successfully.",
-      });
-      clearCart();
-    } catch (error) {
-      toast({
-        title: "Order Failed",
-        description: "There was an error submitting your order.",
-        variant: "destructive",
-      });
-    }
   };
 
   return (
@@ -118,12 +102,13 @@ const Cart = () => {
                       Apply
                     </Button>
                   </div>
-                  <Button 
-                    className="w-full mt-4 bg-brand-orange hover:bg-brand-orange/90"
-                    onClick={handleCheckout}
-                  >
-                    Proceed to Checkout
-                  </Button>
+                  <Link to="/checkout">
+                    <Button 
+                      className="w-full mt-4 bg-brand-orange hover:bg-brand-orange/90"
+                    >
+                      Proceed to Checkout
+                    </Button>
+                  </Link>
                 </div>
               </Card>
             </div>

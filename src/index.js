@@ -11,11 +11,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
+app.use('/api/public', require('./routes/public'));
 app.use('/api/restaurants', require('./routes/restaurants'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/menu', require('./routes/menu'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/promotions', require('./routes/promotions'));
+app.use('/api/admin', require('./routes/admin'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -38,4 +40,4 @@ db.sequelize.sync({ force: false })
     })
     .catch(err => {
         console.error('Unable to connect to the database:', err);
-    }); 
+    });
